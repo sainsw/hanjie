@@ -470,6 +470,35 @@ export function Hanjie() {
       }
       if (meta) return;
 
+      // A letter does nothing to a focused button, so these stay global.
+      switch (e.key) {
+        case 'h':
+        case 'H':
+          takeHint();
+          return;
+        case 'm':
+        case 'M':
+          setMuted((was) => {
+            const next = !was;
+            sfx.setMuted(next);
+            localStorage.setItem('hanjie:muted', String(next));
+            return next;
+          });
+          return;
+        case 'e':
+        case 'E':
+          setMode((m) => (m === 'ink' ? 'mark' : 'ink'));
+          sfx.play('ui');
+          return;
+      }
+
+      // The rest drive the cursor inside the grid, and Space and Enter are how
+      // you press a button. Left global they swallowed Space from whichever
+      // control had focus: the button never fired, and a square nobody could
+      // see the cursor on got inked instead.
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.closest('button')) return;
+
       const { r, c } = cursor.current;
       switch (e.key) {
         case 'ArrowUp':
@@ -497,24 +526,6 @@ export function Hanjie() {
         case 'X':
           e.preventDefault();
           toggleAt(r, c, 2);
-          break;
-        case 'h':
-        case 'H':
-          takeHint();
-          break;
-        case 'm':
-        case 'M':
-          setMuted((was) => {
-            const next = !was;
-            sfx.setMuted(next);
-            localStorage.setItem('hanjie:muted', String(next));
-            return next;
-          });
-          break;
-        case 'e':
-        case 'E':
-          setMode((m) => (m === 'ink' ? 'mark' : 'ink'));
-          sfx.play('ui');
           break;
       }
     };
@@ -614,7 +625,11 @@ export function Hanjie() {
         </div>
 
         <aside className="hud">
-          <div className="hud-play">
+          {/* Both panels share a grid cell and cross-fade, so whichever one is
+              on its way out is still laid out and still focusable. `inert`
+              takes it out of the tab order and the accessibility tree for as
+              long as it is invisible, without touching the fade. */}
+          <div className="hud-play" inert={stage !== 'play'}>
             <div className="clock">
               <span className="clock-face">{formatTime(elapsed)}</span>
               <span className="clock-label">elapsed</span>

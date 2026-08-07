@@ -92,7 +92,7 @@ export function WinCard({
   onAgain: () => void;
 }) {
   return (
-    <div className="wincard" data-show={show} aria-live="polite">
+    <div className="wincard" data-show={show} inert={!show} aria-live="polite">
       <p className="wincard-kanji">{PUZZLE.kanji}</p>
       <h2 className="wincard-title">{PUZZLE.title}</h2>
       <p className="wincard-note">{PUZZLE.note}</p>

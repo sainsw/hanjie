@@ -22,8 +22,11 @@ where the runs sit and the picture falls out of the grid.
 - Starting a drag on a square that already has what you are painting rubs out
   instead, for the whole drag.
 - Right click paints the other thing without switching mode.
-- Arrow keys move, space fills, `X` marks a square as ruled out, `H` takes a
-  hint, `M` mutes, `E` swaps mode, `⌘Z` and `⇧⌘Z` undo and redo.
+- With the grid focused, arrow keys move, space fills and `X` marks a square as
+  ruled out. Those keys belong to the grid, so that space still presses whatever
+  control you have tabbed to.
+- `H` takes a hint, `M` mutes, `E` swaps mode, `⌘Z` and `⇧⌘Z` undo and redo,
+  from anywhere on the page.
 
 A line's numbers fade and take a line through when that line comes out right.
 Marks are only for you: the puzzle is finished when the ink matches, whatever

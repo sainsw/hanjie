@@ -34,7 +34,9 @@ button {
   --paper-lit: #fbf5e8;
   --paper-shade: #e2d5ba;
   --ink: #1d1a16;
-  --ink-soft: #6a6055;
+  /* Dark enough to clear 4.5:1 against --paper-shade, which is what the HUD
+     actually sits on. The obvious warmer grey (#6a6055) only reaches 4.2:1. */
+  --ink-soft: #635a4f;
   --mark: #a1907c;
   --seal: #c8452c;
   --gold: #b5883f;
@@ -123,14 +125,25 @@ body::after {
 
 /* ---------------------------------------------------------------- masthead */
 
+/* Every measurement the grid has to fit inside is named here once, so the sizing
+   maths below can subtract the real numbers instead of guessing at them. */
 .stage {
+  --pad-y: clamp(1.25rem, 4vw, 3.5rem);
+  --pad-x: clamp(1rem, 4vw, 3rem);
+  --stage-gap: clamp(1.5rem, 3vw, 2.75rem);
+  --sheet-pad: clamp(0.9rem, 2.4vw, 1.9rem);
+  --hud-w: 16rem;
+  /* The masthead is the one thing CSS cannot measure. It is a capped clamp over
+     a two-line tagline, so it lands within a few px of this at every width the
+     side-by-side layout is used at. */
+  --masthead-h: 8.5rem;
+
   min-height: 100dvh;
-  padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1rem, 4vw, 3rem)
-    clamp(3rem, 8vw, 6rem);
+  padding: var(--pad-y) var(--pad-x);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: clamp(1.5rem, 3vw, 2.75rem);
+  gap: var(--stage-gap);
 }
 
 .masthead {
@@ -198,7 +211,7 @@ body::after {
 
 .sheet {
   position: relative;
-  padding: clamp(0.9rem, 2.4vw, 1.9rem);
+  padding: var(--sheet-pad);
   background: linear-gradient(
     150deg,
     var(--paper-lit),
@@ -235,20 +248,39 @@ body::after {
 
 .puzzle {
   /* The grid is sized to fit the window in both directions, so the whole sheet
-     stays on screen at a glance. --frame is everything around it: page padding,
-     sheet padding, and a little air. */
-  --frame: 5rem;
+     stays on screen at a glance. --chrome-x and --chrome-y are everything the
+     grid has to share the window with, summed from the same clamps that draw
+     it, so the reserve tracks the viewport instead of being one fixed guess. */
+  --chrome-x: calc(
+    var(--pad-x) * 2 + var(--sheet-pad) * 2 + var(--hud-w) + var(--stage-gap)
+  );
+  --chrome-y: calc(
+    var(--pad-y) * 2 + var(--sheet-pad) * 2 + var(--masthead-h) +
+      var(--stage-gap)
+  );
   --cell: max(
     1.05rem,
     min(
       2.3rem,
-      calc((100vw - var(--frame)) / (var(--w) + var(--rowdepth) * 0.82)),
-      calc((100dvh - 19rem) / (var(--h) + var(--coldepth) * 0.82))
+      calc(
+        (100vw - var(--chrome-x)) /
+          (var(--w) + var(--rowdepth) * 0.82 + 0.16)
+      ),
+      calc(
+        (100dvh - var(--chrome-y)) /
+          (var(--h) + var(--coldepth) * 0.54 + 0.1)
+      )
     )
   );
+
+  /* A row clue is as wide as a digit box; a column clue is only as tall as a
+     line of type. Sizing the top gutter off the width, as one shared --clue
+     once did, reserved ~40% more height than the numbers ever used. */
+  --clue-size: max(0.68rem, calc(var(--cell) * 0.46));
   --clue: calc(var(--cell) * 0.82);
-  --gutter-w: calc(var(--rowdepth) * var(--clue));
-  --gutter-h: calc(var(--coldepth) * var(--clue));
+  --clue-line: calc(var(--clue-size) * 1.16);
+  --gutter-w: calc(var(--rowdepth) * var(--clue) + var(--cell) * 0.16);
+  --gutter-h: calc(var(--coldepth) * var(--clue-line) + var(--cell) * 0.1);
 
   position: relative;
   display: grid;
@@ -271,6 +303,9 @@ body::after {
   width: 62%;
   max-width: 2.2rem;
   overflow: visible;
+  /* Dimmed on the same beat as the clues at the finish. The transition lives on
+     the mark rather than on .corner, whose opacity the entry animation owns. */
+  transition: opacity 0.7s var(--ease-out);
 }
 
 /* ------------------------------------------------------------------ clues */
@@ -296,7 +331,7 @@ body::after {
 
 .clue {
   display: flex;
-  font-size: max(0.6rem, calc(var(--cell) * 0.46));
+  font-size: var(--clue-size);
   font-weight: 600;
   color: var(--ink);
   transition: opacity 0.4s var(--ease-out), color 0.4s var(--ease-out);
@@ -332,8 +367,10 @@ body::after {
   width: var(--cell);
 }
 
+/* The dot standing in for a zero clue. Quieter than a number, but it is still
+   the only thing that line has to say, so it has to be legible. */
 .num-zero {
-  color: color-mix(in oklab, var(--ink) 28%, transparent);
+  color: color-mix(in oklab, var(--ink) 62%, transparent);
 }
 
 /* A settled line stands down: the numbers fade and take a line through. */
@@ -560,7 +597,7 @@ body::after {
 /* The controls and the finishing card share one cell, so the card resolves in
    place as the tools step back rather than pushing the picture off screen. */
 .hud {
-  width: min(15rem, 100%);
+  width: min(var(--hud-w), 100%);
   display: grid;
   grid-template-areas: 'panel';
   align-items: start;
@@ -600,7 +637,7 @@ body::after {
 }
 
 .clock-label {
-  font-size: 0.7rem;
+  font-size: 0.74rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--ink-soft);
@@ -652,9 +689,16 @@ body::after {
   color: var(--paper-lit);
 }
 
+/* A finger needs 44px; the pill only gives a mouse 34. */
+@media (pointer: coarse) {
+  .mode-option {
+    padding: 0.85rem 0.25rem;
+  }
+}
+
 .mode-note {
   margin: -0.7rem 0 0;
-  font-size: 0.72rem;
+  font-size: 0.78rem;
   line-height: 1.5;
   color: var(--ink-soft);
 }
@@ -723,8 +767,8 @@ body::after {
 }
 
 .control-label {
-  font-size: 0.62rem;
-  letter-spacing: 0.1em;
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-soft);
   text-align: center;
@@ -734,8 +778,15 @@ body::after {
 .control-label em {
   display: block;
   font-style: normal;
-  opacity: 0.6;
-  font-size: 0.9em;
+  opacity: 0.75;
+  font-size: 0.92em;
+}
+
+/* No ⌘ key to press, so the shortcut is noise rather than help. */
+@media (pointer: coarse) {
+  .control-label em {
+    display: none;
+  }
 }
 
 .tallies {
@@ -751,8 +802,8 @@ body::after {
   grid-template-columns: 4.2rem 1fr auto;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.68rem;
-  letter-spacing: 0.14em;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--ink-soft);
 }
@@ -801,8 +852,15 @@ body::after {
   opacity: 0;
 }
 
-.stage:not([data-stage='play']) .clue {
-  opacity: 0.12;
+.stage:not([data-stage='play']) .clue,
+.stage:not([data-stage='play']) .corner-mark {
+  opacity: 0.08;
+}
+
+/* The strikes go with them. Thirty of them left at a low opacity read as dirt
+   in the margin rather than as numbers standing down. */
+.stage:not([data-stage='play']) .clue .num::after {
+  opacity: 0;
 }
 
 .stage:not([data-stage='play']) .crosshair,
@@ -826,11 +884,15 @@ body::after {
   cursor: default;
 }
 
+/* The overhang is measured off the paper margin, not off a cell, so the seal
+   lands in the same place on the sheet at every size: far enough out to sit in
+   the margin rather than on the drawing, never far enough to leave the paper.
+   Pinning it to the cell put it flush with the sheet edge on a phone. */
 .seal {
   position: absolute;
   z-index: 6;
-  right: calc(var(--cell) * -0.55);
-  bottom: calc(var(--cell) * -0.75);
+  right: calc(var(--sheet-pad) * -0.7);
+  bottom: calc(var(--sheet-pad) * -0.7);
   width: calc(var(--cell) * 2.6);
   height: calc(var(--cell) * 2.6);
   opacity: 0;
@@ -928,8 +990,8 @@ body::after {
 }
 
 .wincard-stats dt {
-  font-size: 0.62rem;
-  letter-spacing: 0.18em;
+  font-size: 0.68rem;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--ink-soft);
 }
@@ -1074,6 +1136,13 @@ body::after {
   .tally {
     grid-template-columns: 4.2rem 1fr auto;
   }
+
+  /* Stacked, so the HUD is below the sheet rather than beside it and the page
+     is expected to scroll. Width is the only thing the grid has to fit. */
+  .puzzle {
+    --chrome-x: calc(var(--pad-x) * 2 + var(--sheet-pad) * 2);
+    --chrome-y: 11rem;
+  }
 }
 
 @media (max-width: 30rem) {
@@ -1082,17 +1151,9 @@ body::after {
   }
 
   /* Give the grid back the padding it would otherwise lose on a phone. */
-  .puzzle {
-    --frame: 2.4rem;
-  }
-
   .stage {
-    padding-left: 0.6rem;
-    padding-right: 0.6rem;
-  }
-
-  .sheet {
-    padding: 0.6rem 0.7rem 0.8rem;
+    --pad-x: 0.6rem;
+    --sheet-pad: 0.7rem;
   }
 
   .brand {

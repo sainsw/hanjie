@@ -22,10 +22,12 @@ export const metadata: Metadata = {
     'A hand-inked nonogram. Read the numbers, fill the grid, and a picture comes out of it.',
 };
 
+// Both match --paper-shade, which is what the page is actually painted on, so
+// the browser chrome runs into the page rather than sitting beside it.
 export const viewport: Viewport = {
   themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#f2ead9' },
-    { media: '(prefers-color-scheme: dark)', color: '#14161b' },
+    { media: '(prefers-color-scheme: light)', color: '#e2d5ba' },
+    { media: '(prefers-color-scheme: dark)', color: '#0b0d12' },
   ],
 };
 
