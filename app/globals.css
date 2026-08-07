@@ -165,11 +165,19 @@ body::after {
   gap: 0.35em;
 }
 
+/* The letters are cut out of a gradient, so a glyph is only visible where the
+   gradient reaches. A 0.9 line-height box ends at 0.9em and the j descends to
+   about 1.16em, which left its tail unpainted rather than clipped. The padding
+   gives the gradient the rest of the descender; the negative margin hands the
+   height straight back, so the masthead does not grow. Stops are in em so the
+   ramp still lands on the same part of the letterform at every size. */
 .brand-word {
+  padding-bottom: 0.3em;
+  margin-bottom: -0.3em;
   background: linear-gradient(
     180deg,
-    var(--ink) 40%,
-    color-mix(in oklab, var(--ink) 72%, var(--paper))
+    var(--ink) 0.36em,
+    color-mix(in oklab, var(--ink) 72%, var(--paper)) 0.9em
   );
   -webkit-background-clip: text;
   background-clip: text;
