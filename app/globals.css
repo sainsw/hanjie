@@ -1,0 +1,1116 @@
+/* =========================================================================
+   Hanjie: sumi ink on washi paper.
+
+   The whole look hangs off two ideas. Ink is stamped, never printed, so every
+   filled square gets its own rotation and corner radii from lib/ink.ts. And the
+   sheet is paper, so it has grain, a warm cast, and a shadow that says it is
+   lying on a desk rather than floating in a browser.
+   ========================================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ theme */
+
+:root {
+  --paper: #f1e8d6;
+  --paper-lit: #fbf5e8;
+  --paper-shade: #e2d5ba;
+  --ink: #1d1a16;
+  --ink-soft: #6a6055;
+  --mark: #a1907c;
+  --seal: #c8452c;
+  --gold: #b5883f;
+
+  --rule: color-mix(in oklab, var(--ink) 15%, transparent);
+  --rule-major: color-mix(in oklab, var(--ink) 42%, var(--paper));
+  --band: color-mix(in oklab, var(--ink) 4%, transparent);
+  --glow: color-mix(in oklab, var(--gold) 14%, transparent);
+  --sheet-shadow: 0 1px 1px rgb(29 26 22 / 0.1),
+    0 26px 46px -30px rgb(29 26 22 / 0.55);
+  --grain: 0.42;
+
+  --font-serif: var(--font-mincho), 'Hiragino Mincho ProN', 'Yu Mincho',
+    'Noto Serif JP', Georgia, serif;
+  --font-sans: var(--font-gothic), 'Hiragino Sans', 'Yu Gothic', system-ui,
+    sans-serif;
+
+  --ease-stamp: cubic-bezier(0.18, 1.5, 0.42, 1);
+  --ease-out: cubic-bezier(0.2, 0.7, 0.25, 1);
+}
+
+[data-theme='night'] {
+  --paper: #1c1f28;
+  --paper-lit: #262a35;
+  --paper-shade: #0b0d12;
+  --ink: #ede0c6;
+  --ink-soft: #97907f;
+  --mark: #6b6558;
+  --seal: #e2543a;
+  --gold: #c9a45c;
+
+  --rule: color-mix(in oklab, var(--ink) 16%, transparent);
+  --rule-major: color-mix(in oklab, var(--ink) 46%, var(--paper));
+  --band: color-mix(in oklab, var(--ink) 5%, transparent);
+  --sheet-shadow: 0 1px 1px rgb(0 0 0 / 0.5), 0 30px 60px -34px rgb(0 0 0 / 0.9);
+  --grain: 0.26;
+}
+
+/* ------------------------------------------------------------ page ground */
+
+body {
+  min-height: 100dvh;
+  color: var(--ink);
+  font-family: var(--font-sans);
+  background-color: var(--paper-shade);
+  background-image:
+    radial-gradient(
+      120% 80% at 18% 0%,
+      color-mix(in oklab, var(--paper-lit) 70%, transparent),
+      transparent 60%
+    ),
+    radial-gradient(
+      90% 70% at 100% 100%,
+      color-mix(in oklab, var(--gold) 12%, transparent),
+      transparent 55%
+    );
+  background-attachment: fixed;
+}
+
+/* Paper grain, laid over everything and ignoring the pointer. */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  opacity: var(--grain);
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+[data-theme='night'] body::after {
+  mix-blend-mode: screen;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- masthead */
+
+.stage {
+  min-height: 100dvh;
+  padding: clamp(1.25rem, 4vw, 3.5rem) clamp(1rem, 4vw, 3rem)
+    clamp(3rem, 8vw, 6rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(1.5rem, 3vw, 2.75rem);
+}
+
+.masthead {
+  text-align: center;
+  max-width: 34rem;
+  animation: rise 0.9s var(--ease-out) both;
+}
+
+.brand {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-weight: 800;
+  font-size: clamp(2.5rem, 8vw, 4.25rem);
+  line-height: 0.9;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 0.35em;
+}
+
+.brand-word {
+  background: linear-gradient(
+    180deg,
+    var(--ink) 40%,
+    color-mix(in oklab, var(--ink) 72%, var(--paper))
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* The little red mark beside the title, set like a seal in a margin. */
+.brand-seal {
+  font-size: 0.3em;
+  font-weight: 400;
+  line-height: 1;
+  padding: 0.42em 0.3em 0.3em;
+  color: var(--paper-lit);
+  background: var(--seal);
+  border-radius: 3px;
+  transform: rotate(3deg) translateY(0.35em);
+  box-shadow: 0 2px 6px -2px color-mix(in oklab, var(--seal) 60%, transparent);
+}
+
+.tagline {
+  margin: 1.1rem auto 0;
+  max-width: 30rem;
+  font-size: clamp(0.86rem, 1.4vw, 0.98rem);
+  line-height: 1.65;
+  color: var(--ink-soft);
+  text-wrap: balance;
+}
+
+/* -------------------------------------------------------------- the table */
+
+.table {
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(1.25rem, 3vw, 2.75rem);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.sheet {
+  position: relative;
+  padding: clamp(0.9rem, 2.4vw, 1.9rem);
+  background: linear-gradient(
+    150deg,
+    var(--paper-lit),
+    var(--paper) 45%,
+    color-mix(in oklab, var(--paper) 92%, var(--paper-shade))
+  );
+  border-radius: 2px;
+  box-shadow: var(--sheet-shadow);
+  transform: rotate(-0.35deg);
+  animation: sheet-in 0.85s var(--ease-out) both;
+}
+
+/* Fibres in the washi: faint, uneven, and only just visible. */
+.sheet::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  opacity: 0.5;
+  background-image: repeating-linear-gradient(
+      92deg,
+      color-mix(in oklab, var(--ink) 3%, transparent) 0 1px,
+      transparent 1px 7px
+    ),
+    repeating-linear-gradient(
+      3deg,
+      color-mix(in oklab, var(--ink) 2%, transparent) 0 1px,
+      transparent 1px 11px
+    );
+}
+
+/* --------------------------------------------------------- puzzle scaffold */
+
+.puzzle {
+  /* The grid is sized to fit the window in both directions, so the whole sheet
+     stays on screen at a glance. --frame is everything around it: page padding,
+     sheet padding, and a little air. */
+  --frame: 5rem;
+  --cell: max(
+    1.05rem,
+    min(
+      2.3rem,
+      calc((100vw - var(--frame)) / (var(--w) + var(--rowdepth) * 0.82)),
+      calc((100dvh - 19rem) / (var(--h) + var(--coldepth) * 0.82))
+    )
+  );
+  --clue: calc(var(--cell) * 0.82);
+  --gutter-w: calc(var(--rowdepth) * var(--clue));
+  --gutter-h: calc(var(--coldepth) * var(--clue));
+
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--gutter-w) calc(var(--w) * var(--cell));
+  grid-template-rows: var(--gutter-h) calc(var(--h) * var(--cell));
+  user-select: none;
+  -webkit-user-select: none;
+  font-family: var(--font-serif);
+}
+
+.corner {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  color: color-mix(in oklab, var(--ink) 30%, transparent);
+  animation: fade-in 0.7s 0.5s var(--ease-out) both;
+}
+
+.corner-mark {
+  width: 62%;
+  max-width: 2.2rem;
+  overflow: visible;
+}
+
+/* ------------------------------------------------------------------ clues */
+
+.rail {
+  position: relative;
+  z-index: 2;
+}
+
+.rail-col {
+  grid-area: 1 / 2;
+  display: grid;
+  grid-template-columns: repeat(var(--w), var(--cell));
+  align-items: end;
+}
+
+.rail-row {
+  grid-area: 2 / 1;
+  display: grid;
+  grid-template-rows: repeat(var(--h), var(--cell));
+  justify-items: end;
+}
+
+.clue {
+  display: flex;
+  font-size: max(0.6rem, calc(var(--cell) * 0.46));
+  font-weight: 600;
+  color: var(--ink);
+  transition: opacity 0.4s var(--ease-out), color 0.4s var(--ease-out);
+  animation: clue-in 0.5s var(--ease-out) both;
+  animation-delay: calc(var(--i) * 22ms + 260ms);
+}
+
+.clue-col {
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  height: 100%;
+  padding-bottom: calc(var(--cell) * 0.1);
+}
+
+.clue-row {
+  align-items: center;
+  justify-content: flex-end;
+  height: 100%;
+  padding-right: calc(var(--cell) * 0.16);
+}
+
+.num {
+  min-width: var(--clue);
+  text-align: center;
+  line-height: 1.08;
+  font-variant-numeric: lining-nums tabular-nums;
+  position: relative;
+}
+
+.clue-col .num {
+  min-width: auto;
+  width: var(--cell);
+}
+
+.num-zero {
+  color: color-mix(in oklab, var(--ink) 28%, transparent);
+}
+
+/* A settled line stands down: the numbers fade and take a line through. */
+.clue[data-settled='true'] {
+  opacity: 0.34;
+  color: var(--ink-soft);
+}
+
+.clue[data-settled='true'] .num::after {
+  content: '';
+  position: absolute;
+  left: 12%;
+  right: 12%;
+  top: 52%;
+  height: 1px;
+  background: currentColor;
+  transform-origin: left center;
+  animation: strike 0.34s var(--ease-out) both;
+}
+
+.clue[data-flash] {
+  animation: clue-flash 0.72s var(--ease-out);
+}
+
+/* ------------------------------------------------------------------ board */
+
+.board-wrap {
+  grid-area: 2 / 2;
+  position: relative;
+  z-index: 2;
+}
+
+/* Minor rules sit under the ink. */
+.rules {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background-image: repeating-linear-gradient(
+      to right,
+      var(--rule) 0 1px,
+      transparent 1px var(--cell)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--rule) 0 1px,
+      transparent 1px var(--cell)
+    );
+  animation: wipe 0.75s 0.2s var(--ease-out) both;
+  transition: opacity 0.6s var(--ease-out);
+}
+
+/* Major rules sit over it. The colour is mixed from ink and paper so the line
+   reads as darker on bare paper and lighter where it crosses a filled square. */
+.board-wrap::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border: 1.5px solid var(--rule-major);
+  background-image: repeating-linear-gradient(
+      to right,
+      var(--rule-major) 0 1.5px,
+      transparent 1.5px calc(var(--cell) * 5)
+    ),
+    repeating-linear-gradient(
+      to bottom,
+      var(--rule-major) 0 1.5px,
+      transparent 1.5px calc(var(--cell) * 5)
+    );
+  animation: wipe 0.75s 0.2s var(--ease-out) both;
+  transition: opacity 0.7s var(--ease-out);
+}
+
+.cells {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(var(--w), var(--cell));
+  grid-template-rows: repeat(var(--h), var(--cell));
+}
+
+.cell {
+  position: relative;
+  width: var(--cell);
+  height: var(--cell);
+}
+
+/* The ink itself. */
+.cell::before {
+  content: '';
+  position: absolute;
+  inset: 5%;
+  background: var(--ink);
+  border-radius: var(--r1) var(--r2) var(--r3) var(--r4);
+  opacity: 0;
+  transform: scale(0.24) rotate(calc(var(--rot) * 2.6));
+  transition: transform 0.28s var(--ease-stamp), opacity 0.16s ease,
+    inset 0.55s var(--ease-out), border-radius 0.55s var(--ease-out),
+    box-shadow 0.4s var(--ease-out);
+}
+
+.cell[data-s='1']::before {
+  opacity: var(--tone);
+  transform: translate(var(--dx), var(--dy)) scale(1) rotate(var(--rot));
+  /* The wet edge, which lets neighbouring squares bleed into each other. */
+  box-shadow: 0 0 0 calc(var(--bleed) * var(--cell))
+    color-mix(in oklab, var(--ink) 13%, transparent);
+}
+
+/* The cross you put on a square you have ruled out. */
+.cell::after {
+  content: '';
+  position: absolute;
+  inset: 26%;
+  opacity: 0;
+  transform: scale(0.3) rotate(-28deg);
+  transition: transform 0.24s var(--ease-stamp), opacity 0.18s ease;
+  background: linear-gradient(
+      to bottom right,
+      transparent calc(50% - 0.9px),
+      var(--mark) calc(50% - 0.9px) calc(50% + 0.9px),
+      transparent calc(50% + 0.9px)
+    ),
+    linear-gradient(
+      to bottom left,
+      transparent calc(50% - 0.9px),
+      var(--mark) calc(50% - 0.9px) calc(50% + 0.9px),
+      transparent calc(50% + 0.9px)
+    );
+}
+
+.cell[data-s='2']::after {
+  opacity: 1;
+  transform: scale(1) rotate(calc(var(--rot) * 1.6));
+}
+
+.cell[data-hint] {
+  animation: hint-ring 0.95s var(--ease-out);
+  border-radius: 4px;
+  z-index: 4;
+}
+
+/* ----------------------------------------------------- crosshair and focus */
+
+.crosshair {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--glow);
+  transition: opacity 0.2s var(--ease-out), transform 0.07s linear;
+}
+
+.puzzle[data-hover='true'] .crosshair {
+  opacity: 0.75;
+}
+
+.crosshair-row {
+  left: 0;
+  right: 0;
+  top: var(--gutter-h);
+  height: var(--cell);
+  transform: translateY(calc(var(--hr, 0) * var(--cell)));
+}
+
+.crosshair-col {
+  top: 0;
+  bottom: 0;
+  left: var(--gutter-w);
+  width: var(--cell);
+  transform: translateX(calc(var(--hc, 0) * var(--cell)));
+}
+
+.cursor-ring {
+  position: absolute;
+  z-index: 4;
+  pointer-events: none;
+  width: var(--cell);
+  height: var(--cell);
+  top: var(--gutter-h);
+  left: var(--gutter-w);
+  translate: calc(var(--hc, 0) * var(--cell)) calc(var(--hr, 0) * var(--cell));
+  border: 2px solid var(--seal);
+  border-radius: 3px;
+  opacity: 0;
+  transition: translate 0.1s var(--ease-out), opacity 0.2s;
+}
+
+.puzzle[data-cursor='true'] .cursor-ring {
+  opacity: 1;
+}
+
+/* The single element that takes every pointer event on the grid. */
+.hit {
+  grid-area: 2 / 2;
+  z-index: 5;
+  touch-action: none;
+  outline: none;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='4.5' fill='%231d1a16'/%3E%3Ccircle cx='10' cy='10' r='8' fill='none' stroke='%231d1a16' stroke-opacity='.3'/%3E%3C/svg%3E")
+      10 10,
+    crosshair;
+}
+
+.hit[data-mode='mark'] {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Cg stroke='%23a1907c' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M5 5l10 10M15 5L5 15'/%3E%3C/g%3E%3C/svg%3E")
+      10 10,
+    crosshair;
+}
+
+[data-theme='night'] .hit {
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20'%3E%3Ccircle cx='10' cy='10' r='4.5' fill='%23ede0c6'/%3E%3Ccircle cx='10' cy='10' r='8' fill='none' stroke='%23ede0c6' stroke-opacity='.35'/%3E%3C/svg%3E")
+      10 10,
+    crosshair;
+}
+
+.hit:focus-visible {
+  outline: 2px dashed var(--seal);
+  outline-offset: 6px;
+}
+
+/* -------------------------------------------------------------------- hud */
+
+/* The controls and the finishing card share one cell, so the card resolves in
+   place as the tools step back rather than pushing the picture off screen. */
+.hud {
+  width: min(15rem, 100%);
+  display: grid;
+  grid-template-areas: 'panel';
+  align-items: start;
+  animation: rise 0.9s 0.25s var(--ease-out) both;
+}
+
+.hud-play,
+.wincard {
+  grid-area: panel;
+}
+
+.hud-play {
+  display: flex;
+  flex-direction: column;
+  gap: 1.35rem;
+  transition: opacity 0.5s var(--ease-out), transform 0.5s var(--ease-out);
+}
+
+.stage:not([data-stage='play']) .hud-play {
+  opacity: 0;
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+.clock {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.clock-face {
+  font-family: var(--font-serif);
+  font-size: 2.1rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+
+.clock-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.mode {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin: 0;
+  min-inline-size: 0;
+  padding: 3px;
+  border: 1px solid color-mix(in oklab, var(--ink) 18%, transparent);
+  border-radius: 999px;
+  background: color-mix(in oklab, var(--paper-lit) 60%, transparent);
+}
+
+.mode-slide {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  border-radius: 999px;
+  background: var(--ink);
+  transition: transform 0.32s var(--ease-stamp);
+}
+
+.mode-slide[data-at='mark'] {
+  transform: translateX(100%);
+}
+
+.mode-option {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.5rem 0.25rem;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  letter-spacing: 0.06em;
+  color: var(--ink-soft);
+  transition: color 0.24s var(--ease-out);
+}
+
+.mode-option[data-active='true'] {
+  color: var(--paper-lit);
+}
+
+.mode-note {
+  margin: -0.7rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+}
+
+/* There is no right button on a phone, so the hint changes with the pointer. */
+.note-coarse {
+  display: none;
+}
+
+@media (pointer: coarse) {
+  .note-fine {
+    display: none;
+  }
+
+  .note-coarse {
+    display: inline;
+  }
+}
+
+.icon {
+  width: 1.15rem;
+  height: 1.15rem;
+  flex: none;
+}
+
+.controls {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.control {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.6rem 0.25rem 0.5rem;
+  border-radius: 8px;
+  color: var(--ink);
+  border: 1px solid transparent;
+  transition: background 0.2s, border-color 0.2s, transform 0.2s var(--ease-out),
+    opacity 0.2s;
+}
+
+.control:hover:not(:disabled) {
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+  border-color: color-mix(in oklab, var(--ink) 12%, transparent);
+}
+
+.control:active:not(:disabled) {
+  transform: translateY(1px) scale(0.97);
+}
+
+.control:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.control[data-tone='warn'] {
+  color: var(--seal);
+  border-color: color-mix(in oklab, var(--seal) 40%, transparent);
+}
+
+.control[aria-pressed='true'] {
+  background: color-mix(in oklab, var(--gold) 16%, transparent);
+}
+
+.control-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  text-align: center;
+  line-height: 1.3;
+}
+
+.control-label em {
+  display: block;
+  font-style: normal;
+  opacity: 0.6;
+  font-size: 0.9em;
+}
+
+.tallies {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid color-mix(in oklab, var(--ink) 12%, transparent);
+}
+
+.tally {
+  display: grid;
+  grid-template-columns: 4.2rem 1fr auto;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.tally-marks {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+  height: 1rem;
+}
+
+/* One stroke per line, inked in as that line comes out right. */
+.tally-marks i {
+  display: block;
+  width: 2px;
+  height: 0.55rem;
+  background: color-mix(in oklab, var(--ink) 16%, transparent);
+  transform-origin: bottom center;
+  transition: height 0.3s var(--ease-stamp), background 0.3s,
+    transform 0.3s var(--ease-stamp);
+}
+
+.tally-marks i[data-on='true'] {
+  height: 1rem;
+  background: var(--ink);
+  transform: rotate(calc((var(--i) % 3 - 1) * 4deg));
+}
+
+.tally-count {
+  font-family: var(--font-serif);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  letter-spacing: 0.02em;
+}
+
+/* ------------------------------------------------------------ the finish */
+
+/* Marks and rules step back so the picture is all that is left. */
+.stage:not([data-stage='play']) .cell[data-s='2']::after {
+  opacity: 0;
+  transform: scale(0.5) rotate(0deg);
+}
+
+.stage:not([data-stage='play']) .rules,
+.stage:not([data-stage='play']) .board-wrap::after {
+  opacity: 0;
+}
+
+.stage:not([data-stage='play']) .clue {
+  opacity: 0.12;
+}
+
+.stage:not([data-stage='play']) .crosshair,
+.stage:not([data-stage='play']) .cursor-ring {
+  opacity: 0 !important;
+}
+
+/* Then the squares knit together: the stamping jitter comes out, the tonal
+   variation evens up, and the edges overlap enough to leave no seam. */
+.stage[data-stage='merge'] .cell[data-s='1']::before,
+.stage[data-stage='seal'] .cell[data-s='1']::before,
+.stage[data-stage='card'] .cell[data-s='1']::before {
+  inset: -0.6px;
+  border-radius: 1px;
+  opacity: 1;
+  transform: translate(0, 0) scale(1) rotate(0deg);
+  box-shadow: 0 0 0 0 transparent;
+}
+
+.stage:not([data-stage='play']) .hit {
+  cursor: default;
+}
+
+.seal {
+  position: absolute;
+  z-index: 6;
+  right: calc(var(--cell) * -0.55);
+  bottom: calc(var(--cell) * -0.75);
+  width: calc(var(--cell) * 2.6);
+  height: calc(var(--cell) * 2.6);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.seal[data-show='true'] {
+  animation: stamp 0.5s var(--ease-stamp) forwards;
+}
+
+.seal-stamp {
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 3px 8px color-mix(in oklab, var(--seal) 30%, transparent));
+}
+
+.seal-glyph {
+  font-family: var(--font-serif);
+  font-size: 54px;
+  font-weight: 600;
+}
+
+.seal-flecks {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.seal-flecks i {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--size);
+  height: calc(var(--size) * 0.8);
+  border-radius: 40% 60% 55% 45%;
+  background: var(--seal);
+  opacity: 0;
+}
+
+.seal[data-show='true'] .seal-flecks i {
+  animation: fleck 0.7s var(--ease-out) forwards;
+  animation-delay: calc(var(--delay) + 120ms);
+}
+
+.wincard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  opacity: 0;
+  transform: translateY(14px);
+  pointer-events: none;
+  transition: opacity 0.6s var(--ease-out), transform 0.6s var(--ease-out);
+}
+
+.wincard[data-show='true'] {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.wincard-kanji {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 2.4rem;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+  color: var(--seal);
+}
+
+.wincard-title {
+  margin: 0.2rem 0 0;
+  font-family: var(--font-serif);
+  font-size: clamp(1.4rem, 3vw, 1.9rem);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.wincard-note {
+  margin: 0.4rem 0 0;
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+}
+
+.wincard-stats {
+  display: flex;
+  gap: 1.9rem;
+  margin: 1.3rem 0 0;
+}
+
+.wincard-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.wincard-stats dt {
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.wincard-stats dd {
+  margin: 0;
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.wincard-again {
+  margin-top: 1.6rem;
+  padding: 0.7rem 1.9rem;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper-lit);
+  font-size: 0.78rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  transition: transform 0.24s var(--ease-stamp), box-shadow 0.24s;
+  box-shadow: 0 8px 20px -12px color-mix(in oklab, var(--ink) 80%, transparent);
+}
+
+.wincard-again:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 26px -14px color-mix(in oklab, var(--ink) 80%, transparent);
+}
+
+/* ------------------------------------------------------------- animations */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: rotate(-1.6deg) translateY(26px) scale(0.985);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes clue-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+/* The rules draw themselves on, left to right. */
+@keyframes wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes strike {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes clue-flash {
+  0% {
+    color: var(--seal);
+    transform: scale(1.14);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes hint-ring {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in oklab, var(--seal) 65%, transparent);
+  }
+  70% {
+    box-shadow: 0 0 0 8px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+@keyframes stamp {
+  0% {
+    opacity: 0;
+    transform: scale(2.1) rotate(-16deg);
+  }
+  55% {
+    opacity: 1;
+    transform: scale(0.92) rotate(4deg);
+  }
+  75% {
+    transform: scale(1.04) rotate(2deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(3deg);
+  }
+}
+
+@keyframes fleck {
+  0% {
+    opacity: 0.9;
+    transform: rotate(var(--angle)) translateX(0) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(var(--angle)) translateX(var(--dist)) rotate(var(--spin));
+  }
+}
+
+/* ------------------------------------------------------------- responsive */
+
+@media (max-width: 52rem) {
+  .table {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .hud {
+    width: min(23rem, 100%);
+  }
+
+  .controls {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .tally {
+    grid-template-columns: 4.2rem 1fr auto;
+  }
+}
+
+@media (max-width: 30rem) {
+  .controls {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  /* Give the grid back the padding it would otherwise lose on a phone. */
+  .puzzle {
+    --frame: 2.4rem;
+  }
+
+  .stage {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+
+  .sheet {
+    padding: 0.6rem 0.7rem 0.8rem;
+  }
+
+  .brand {
+    font-size: clamp(2.2rem, 12vw, 3rem);
+  }
+}
+
+/* Anything that moves has a quiet version. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .sheet {
+    transform: rotate(-0.35deg);
+  }
+}
