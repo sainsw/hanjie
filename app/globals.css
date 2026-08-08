@@ -194,24 +194,32 @@ body::after {
 
 /* The little red mark beside the title, set like a seal in a margin. It is also
    the way in and out of the rules, so it turns over when they are showing. */
+/* Cut to the wordmark's capitals: a square stamp exactly as tall as a cap,
+   standing on the same baseline, which is where a seal sits beside a title. It
+   was two thirds of that and floating up level with the ascenders.
+
+   The padding makes it square (glyph advance is 1em, so the sides carry the
+   difference) and the translate drops it from the top of the line to the cap
+   line. Both are Shippori Mincho's cap metrics at the title size, written in
+   the stamp's own em. */
 .brand-seal {
   position: relative;
-  font-size: 0.3em;
+  font-size: 0.5em;
   font-weight: 400;
   line-height: 1;
-  padding: 0.42em 0.3em 0.3em;
+  padding: 0.26em 0.24em 0.22em;
   color: var(--paper-lit);
   background: var(--seal);
-  border-radius: 3px;
+  border-radius: 0.09em;
   box-shadow: 0 2px 6px -2px color-mix(in oklab, var(--seal) 60%, transparent);
   transform-style: preserve-3d;
-  transform: rotate(3deg) translateY(0.35em);
+  transform: rotate(3deg) translateY(0.285em);
   transition: transform 0.55s var(--ease-stamp);
 }
 
 /* Turned over, and pressed into the paper while the rules are showing. */
 .brand-seal[aria-expanded='true'] {
-  transform: rotate(3deg) translateY(0.35em) rotateY(180deg);
+  transform: rotate(3deg) translateY(0.285em) rotateY(180deg);
   box-shadow: inset 0 2px 5px -1px color-mix(in oklab, black 45%, transparent);
 }
 
@@ -233,10 +241,17 @@ body::after {
   transform: rotateY(180deg);
 }
 
-/* A finger needs more than a 0.3em glyph. */
+/* A cap on a phone is smaller than a finger. The hit area grows past the ink
+   rather than the stamp being drawn bigger than the letters it sits beside. */
 @media (pointer: coarse) {
-  .brand-seal {
-    padding: 0.7em 0.6em 0.6em;
+  .brand-seal::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
   }
 }
 
