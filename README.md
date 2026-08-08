@@ -17,6 +17,10 @@ npm run dev
 Numbers along the top and left count the runs of ink in that line. Work out
 where the runs sit and the picture falls out of the grid.
 
+The rules live behind the red seal beside the title. They are open on a first
+visit and folded away on every one after, which is the only reason the grid can
+be sized to the window rather than to the window minus an explainer.
+
 - Drag to fill a run. The drag locks to the row or column you started moving
   along, so a long line does not wobble into its neighbour.
 - Starting a drag on a square that already has what you are painting rubs out

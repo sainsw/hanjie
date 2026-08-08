@@ -131,14 +131,18 @@ export function Control({
   disabled,
   pressed,
   tone,
+  vacant,
   children,
 }: {
   label: string;
+  /** Shown on hover and listed in the help panel, never printed on the button. */
   hint?: string;
   onClick: () => void;
   disabled?: boolean;
   pressed?: boolean;
   tone?: 'warn';
+  /** Nothing for this control to do yet, so it keeps its slot but not its ink. */
+  vacant?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -149,14 +153,13 @@ export function Control({
       disabled={disabled}
       aria-pressed={pressed}
       aria-label={label}
+      aria-hidden={vacant || undefined}
       data-tone={tone}
+      data-vacant={vacant || undefined}
       title={hint ? `${label} (${hint})` : label}
     >
       {children}
-      <span className="control-label">
-        {label}
-        {hint ? <em>{hint}</em> : null}
-      </span>
+      <span className="control-label">{label}</span>
     </button>
   );
 }

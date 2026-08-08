@@ -148,6 +148,9 @@ export function Hanjie() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [announcement, setAnnouncement] = useState('');
+  // Open on a first visit, folded away on every one after. The rules are worth
+  // exactly one read, and the grid takes the space back once they are read.
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const hitRef = useRef<HTMLDivElement>(null);
   const puzzleRef = useRef<HTMLDivElement>(null);
@@ -222,9 +225,27 @@ export function Hanjie() {
     [],
   );
 
+  const markSeen = useCallback(() => {
+    try {
+      localStorage.setItem('hanjie:seen', 'true');
+    } catch {
+      // A private window that refuses storage just gets the rules every time,
+      // which is the harmless way round to fail.
+    }
+  }, []);
+
   const beginClock = useCallback(() => {
     setStartedAt((at) => at ?? Date.now());
-  }, []);
+    markSeen();
+  }, [markSeen]);
+
+  const toggleHelp = useCallback(() => {
+    setHelpOpen((was) => {
+      if (was) markSeen();
+      return !was;
+    });
+    sfx.play('ui');
+  }, [markSeen]);
 
   const cellFrom = useCallback((clientX: number, clientY: number) => {
     const el = hitRef.current;
@@ -392,19 +413,14 @@ export function Hanjie() {
     return () => clearTimeout(id);
   }, [hinted]);
 
-  // Sound and theme both survive a reload.
+  // Sound and theme both survive a reload, and so does having read the rules.
   useEffect(() => {
     const savedMute = localStorage.getItem('hanjie:muted') === 'true';
     setMuted(savedMute);
     sfx.setMuted(savedMute);
     setNight(document.documentElement.dataset.theme === 'night');
+    setHelpOpen(localStorage.getItem('hanjie:seen') !== 'true');
   }, []);
-
-  useEffect(() => {
-    if (startedAt === null || state.solved) return;
-    const id = setInterval(() => setElapsed(Date.now() - startedAt), 250);
-    return () => clearInterval(id);
-  }, [startedAt, state.solved]);
 
   // A note for every line that comes out right, climbing as the sheet fills.
   useEffect(() => {
@@ -559,16 +575,64 @@ export function Hanjie() {
   } as CSSProperties;
 
   return (
-    <div className="stage" data-stage={stage}>
+    <div className="stage" data-stage={stage} data-help={helpOpen}>
       <header className="masthead">
         <h1 className="brand">
           <span className="brand-word">Hanjie</span>
-          <span className="brand-seal">絵</span>
+          {/* The seal was decoration. It is now the only thing the rules hang
+              off, so the rules are on screen when you want them and nowhere
+              when you do not. */}
+          <button
+            type="button"
+            className="brand-seal"
+            onClick={toggleHelp}
+            aria-expanded={helpOpen}
+            aria-controls="how-to-play"
+            aria-label={helpOpen ? 'Close how to play' : 'How to play'}
+          >
+            <span className="brand-seal-face" aria-hidden="true">
+              絵
+            </span>
+            <span
+              className="brand-seal-face brand-seal-back"
+              aria-hidden="true"
+            >
+              閉
+            </span>
+          </button>
         </h1>
-        <p className="tagline">
-          The numbers count the runs of ink in each line. Work out where they
-          sit, and a picture comes out of the grid.
-        </p>
+
+        {/* Pushes the sheet down rather than being charged to the grid's size
+            reserve, so reading the rules never costs you a smaller board. */}
+        <div
+          className="help"
+          id="how-to-play"
+          data-open={helpOpen}
+          inert={!helpOpen}
+        >
+          <div className="help-inner">
+            <p className="help-lede">
+              The numbers count the runs of ink in each line. Work out where
+              they sit, and a picture comes out of the grid.
+            </p>
+            <ul className="help-list">
+              <li>
+                Drag to fill a run. The drag locks to the line you started
+                along.
+              </li>
+              <li>
+                Start on a square that already has your paint to rub out
+                instead.
+              </li>
+              <li className="help-fine">Right click paints the other thing.</li>
+              <li className="help-fine">
+                <b>Arrows</b> move, <b>space</b> fills, <b>X</b> rules out.{' '}
+                <b>H</b> hint, <b>M</b> mute, <b>E</b> mode, <b>⌘Z</b> undo.
+              </li>
+              <li>Marks are only for you. Only the ink has to match.</li>
+            </ul>
+          </div>
+        </div>
       </header>
 
       <div className="table">
@@ -628,13 +692,11 @@ export function Hanjie() {
           {/* Both panels share a grid cell and cross-fade, so whichever one is
               on its way out is still laid out and still focusable. `inert`
               takes it out of the tab order and the accessibility tree for as
-              long as it is invisible, without touching the fade. */}
-          <div className="hud-play" inert={stage !== 'play'}>
-            <div className="clock">
-              <span className="clock-face">{formatTime(elapsed)}</span>
-              <span className="clock-label">elapsed</span>
-            </div>
+              long as it is invisible, without touching the fade.
 
+              No clock here: it still runs, it is just not something you need
+              while you are working. It is reported once, on the card. */}
+          <div className="hud-play" inert={stage !== 'play'}>
             <fieldset className="mode">
               <legend className="sr-only">Drag paints</legend>
               <span className="mode-slide" data-at={mode} aria-hidden="true" />
@@ -666,15 +728,6 @@ export function Hanjie() {
               </button>
             </fieldset>
 
-            <p className="mode-note">
-              <span className="note-fine">
-                Right click paints the other one without switching.
-              </span>
-              <span className="note-coarse">
-                Drag along a line to fill a whole run at once.
-              </span>
-            </p>
-
             <div className="controls">
               <Control
                 label="Undo"
@@ -689,6 +742,7 @@ export function Hanjie() {
                 hint="⇧⌘Z"
                 onClick={redo}
                 disabled={state.future.length === 0}
+                vacant={state.future.length === 0}
               >
                 <RedoIcon className="icon" />
               </Control>
