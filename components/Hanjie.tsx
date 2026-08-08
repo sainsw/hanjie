@@ -271,6 +271,10 @@ export function Hanjie() {
         return;
       }
 
+      // Any held transform from a previous turn has to go before the card is
+      // measured, or the next one starts its sums from a squashed box.
+      flipRef.current?.cancel();
+
       // The card has to be painted before it can be measured.
       if (next) flushSync(() => setHelpVisible(true));
       flushSync(() => setHelpOpen(next));
@@ -295,7 +299,6 @@ export function Hanjie() {
       // size the squash cancels out, or the mark comes back tiny.
       card.style.setProperty('--flip-scale', String(s.width / c.width));
 
-      flipRef.current?.cancel();
       flipRef.current = card.animate(
         next
           ? [
@@ -317,6 +320,10 @@ export function Hanjie() {
           // gone before you have seen it turn and the card just appears. This
           // crosses the edge at the midpoint: it grows facing you, then turns.
           easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
+          // Hold the last frame. Releasing to the resting rule the instant the
+          // turn ends put the card back at full size for the one frame before
+          // React could hide it, which read as the modal flashing up again.
+          fill: 'forwards',
         },
       );
 
