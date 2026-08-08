@@ -258,6 +258,7 @@ export function Hanjie() {
     (next: boolean) => {
       const slot = slotRef.current;
       const card = cardRef.current;
+      const seal = sealRef.current;
       sfx.play('ui');
       markSeen();
 
@@ -265,7 +266,7 @@ export function Hanjie() {
         typeof window === 'undefined' ||
         window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-      if (!slot || !card || still) {
+      if (!slot || !card || !seal || still) {
         setHelpVisible(next);
         setHelpOpen(next);
         return;
@@ -290,14 +291,23 @@ export function Hanjie() {
       // card is fixed to the viewport and has no transformed ancestor.
       const centre = 'translate(-50%, -50%)';
       const depth = 'perspective(1400px)';
+      // One scale for both axes. Fitting the card's box to the stamp's needed a
+      // different factor per axis, and the card is not the square the stamp is,
+      // so the mark rode down stretched (4% on a phone, 13% on a desktop) and
+      // snapped back the moment the real stamp took over. The front face is cut
+      // square off the card's width instead, so a single factor lands it exactly
+      // on the stamp without distorting anything.
+      const k = s.width / c.width;
       const onStamp =
         `${centre} translate(${(s.left + s.width / 2 - (c.left + c.width / 2)).toFixed(2)}px,` +
         ` ${(s.top + s.height / 2 - (c.top + c.height / 2)).toFixed(2)}px)` +
-        ` scale(${(s.width / c.width).toFixed(4)}, ${(s.height / c.height).toFixed(4)})`;
+        ` scale(${k.toFixed(4)})`;
 
-      // The face showing while the card is stamp-sized has to be drawn at the
-      // size the squash cancels out, or the mark comes back tiny.
-      card.style.setProperty('--flip-scale', String(s.width / c.width));
+      // The mark on that face has to be drawn at the size the squash cancels
+      // out. Measured off the stamp itself rather than assumed: the title, and
+      // so the stamp's glyph, is a different size on a phone.
+      const glyph = parseFloat(getComputedStyle(seal).fontSize);
+      card.style.setProperty('--flip-glyph', `${(glyph / k).toFixed(2)}px`);
 
       flipRef.current = card.animate(
         next

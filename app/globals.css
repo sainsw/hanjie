@@ -298,9 +298,18 @@ body::after {
 /* The face you see while it is still stamp-sized. --flip-scale is the squash
    the animation applies, so dividing by it draws the mark at the size that
    comes out the other side looking like the stamp. */
+/* The face you see while it is still stamp-sized. Cut square off the card's
+   width rather than filling the card, so the single scale factor that carries
+   it down lands it exactly on the stamp's square without stretching the mark.
+   --flip-glyph is the stamp's own glyph size divided back out by that factor,
+   so the mark arrives the size the stamp draws it. */
 .seal-card-front {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 0;
+  width: 100%;
+  aspect-ratio: 1;
+  transform: translateY(-50%);
   display: grid;
   place-items: center;
   backface-visibility: hidden;
@@ -308,7 +317,7 @@ body::after {
   color: var(--paper-lit);
   border-radius: inherit;
   font-family: var(--font-serif);
-  font-size: calc(2.125rem / var(--flip-scale, 0.12));
+  font-size: var(--flip-glyph, 20rem);
   line-height: 1;
 }
 
