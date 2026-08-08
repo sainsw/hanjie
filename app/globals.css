@@ -220,7 +220,10 @@ body::after {
   border-radius: 0.09em;
   box-shadow: 0 2px 6px -2px color-mix(in oklab, var(--seal) 60%, transparent);
   transform: rotate(3deg);
-  transition: opacity 0.12s linear;
+  /* Deliberately not transitioned. The card lands stamp-sized, showing the same
+     mark, in the same place, so the handover has to be a straight swap. Fading
+     the stamp back in left it translucent over the paper for a tenth of a
+     second, which read as the stamp flashing pale as it landed. */
 }
 
 /* The card stands in for it for the whole turn, including the way back, so
