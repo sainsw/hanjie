@@ -40,14 +40,21 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en-GB" data-theme="day" suppressHydrationWarning>
+    // The font variables have to land on the same element that :root's
+    // --font-serif and --font-sans are declared on. On <body> they were out of
+    // scope there, so both stacks were invalid at computed-value time and the
+    // whole page quietly fell back to Times.
+    <html
+      lang="en-GB"
+      data-theme="day"
+      className={`${mincho.variable} ${gothic.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: tiny pre-paint theme boot */}
         <script dangerouslySetInnerHTML={{ __html: themeBoot }} />
       </head>
-      <body className={`${mincho.variable} ${gothic.variable}`}>
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }

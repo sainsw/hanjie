@@ -590,6 +590,10 @@ export function Hanjie() {
             aria-controls="how-to-play"
             aria-label={helpOpen ? 'Close how to play' : 'How to play'}
           >
+            {/* The same mark on both faces. Turning the stamp over is the
+                feedback; swapping in a denser character (閉) only made a
+                delicate seal read as a red blob at 20px. The pressed-in look
+                below carries the open state instead. */}
             <span className="brand-seal-face" aria-hidden="true">
               絵
             </span>
@@ -597,7 +601,7 @@ export function Hanjie() {
               className="brand-seal-face brand-seal-back"
               aria-hidden="true"
             >
-              閉
+              絵
             </span>
           </button>
         </h1>
