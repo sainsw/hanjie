@@ -10,6 +10,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { flushSync } from 'react-dom';
 import { sfx } from '@/lib/audio';
 import {
   type Cell,
@@ -148,12 +149,19 @@ export function Hanjie() {
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [announcement, setAnnouncement] = useState('');
-  // Open on a first visit, folded away on every one after. The rules are worth
-  // exactly one read, and the grid takes the space back once they are read.
+  // Open on a first visit, shut on every one after. The rules are worth exactly
+  // one read. `helpVisible` outlives `helpOpen` by one animation: the card has
+  // to stay painted while it shrinks back into the stamp.
   const [helpOpen, setHelpOpen] = useState(false);
+  const [helpVisible, setHelpVisible] = useState(false);
 
   const hitRef = useRef<HTMLDivElement>(null);
   const puzzleRef = useRef<HTMLDivElement>(null);
+  const slotRef = useRef<HTMLSpanElement>(null);
+  const sealRef = useRef<HTMLButtonElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const flipRef = useRef<Animation | null>(null);
   const drag = useRef<Drag | null>(null);
   const cursor = useRef({ r: 7, c: 7 });
   const settledRef = useRef<{ rows: boolean[]; cols: boolean[] } | null>(null);
@@ -239,13 +247,89 @@ export function Hanjie() {
     markSeen();
   }, [markSeen]);
 
-  const toggleHelp = useCallback(() => {
-    setHelpOpen((was) => {
-      if (was) markSeen();
-      return !was;
-    });
-    sfx.play('ui');
-  }, [markSeen]);
+  /**
+   * The stamp becoming the card, and back. The card always sits at its full
+   * size in CSS; what animates is a transform that squashes it onto the stamp's
+   * square, so the type inside is only ever scaled down and never blurs the way
+   * it would growing from a 50px box. Half a turn on Y carries the two faces
+   * past each other, and backface-visibility does the swap at the edge.
+   */
+  const setHelp = useCallback(
+    (next: boolean) => {
+      const slot = slotRef.current;
+      const card = cardRef.current;
+      sfx.play('ui');
+      markSeen();
+
+      const still =
+        typeof window === 'undefined' ||
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+      if (!slot || !card || still) {
+        setHelpVisible(next);
+        setHelpOpen(next);
+        return;
+      }
+
+      // The card has to be painted before it can be measured.
+      if (next) flushSync(() => setHelpVisible(true));
+      flushSync(() => setHelpOpen(next));
+
+      const s = slot.getBoundingClientRect();
+      const c = card.getBoundingClientRect();
+      // Both halves of the transform have to be spelled out here, because a
+      // keyframe replaces the property outright — including the centring the
+      // card's resting rule depends on.
+      // perspective() sits between the flat part of the transform and the half
+      // turn, so the near edge swings towards you instead of the card simply
+      // squashing flat. It has to be in the list rather than on a parent: the
+      // card is fixed to the viewport and has no transformed ancestor.
+      const centre = 'translate(-50%, -50%)';
+      const depth = 'perspective(1400px)';
+      const onStamp =
+        `${centre} translate(${(s.left + s.width / 2 - (c.left + c.width / 2)).toFixed(2)}px,` +
+        ` ${(s.top + s.height / 2 - (c.top + c.height / 2)).toFixed(2)}px)` +
+        ` scale(${(s.width / c.width).toFixed(4)}, ${(s.height / c.height).toFixed(4)})`;
+
+      // The face showing while the card is stamp-sized has to be drawn at the
+      // size the squash cancels out, or the mark comes back tiny.
+      card.style.setProperty('--flip-scale', String(s.width / c.width));
+
+      flipRef.current?.cancel();
+      flipRef.current = card.animate(
+        next
+          ? [
+              { transform: `${onStamp} rotate(3deg) ${depth} rotateY(0deg)` },
+              {
+                transform: `${centre} translate(0, 0) scale(1, 1) rotate(0deg) ${depth} rotateY(180deg)`,
+              },
+            ]
+          : [
+              {
+                transform: `${centre} translate(0, 0) scale(1, 1) rotate(0deg) ${depth} rotateY(180deg)`,
+              },
+              { transform: `${onStamp} rotate(3deg) ${depth} rotateY(0deg)` },
+            ],
+        {
+          duration: next ? 680 : 560,
+          // Symmetric on purpose. A front-loaded ease puts the half-turn past
+          // 90deg within the first quarter of the time, so the stamp face is
+          // gone before you have seen it turn and the card just appears. This
+          // crosses the edge at the midpoint: it grows facing you, then turns.
+          easing: 'cubic-bezier(0.65, 0, 0.35, 1)',
+        },
+      );
+
+      if (!next) {
+        flipRef.current.finished
+          .then(() => setHelpVisible(false))
+          .catch(() => {
+            // Cancelled by a re-open mid-flight, which already owns the state.
+          });
+      }
+    },
+    [markSeen],
+  );
 
   const cellFrom = useCallback((clientX: number, clientY: number) => {
     const el = hitRef.current;
@@ -419,8 +503,17 @@ export function Hanjie() {
     setMuted(savedMute);
     sfx.setMuted(savedMute);
     setNight(document.documentElement.dataset.theme === 'night');
-    setHelpOpen(localStorage.getItem('hanjie:seen') !== 'true');
+    const first = localStorage.getItem('hanjie:seen') !== 'true';
+    setHelpVisible(first);
+    setHelpOpen(first);
   }, []);
+
+  // Focus follows the card in and back out again, so the rules are not
+  // something a keyboard has to go looking for or get stuck behind.
+  useEffect(() => {
+    if (helpOpen) closeRef.current?.focus();
+    else if (helpVisible) sealRef.current?.focus();
+  }, [helpOpen, helpVisible]);
 
   // A note for every line that comes out right, climbing as the sheet fills.
   useEffect(() => {
@@ -477,6 +570,16 @@ export function Hanjie() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // While the rules are up they are the only thing on the page, so nothing
+      // else gets a key: pressing H behind a modal should not spend a hint.
+      if (helpOpen) {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          setHelp(false);
+        }
+        return;
+      }
+
       const meta = e.metaKey || e.ctrlKey;
       if (meta && e.key.toLowerCase() === 'z') {
         e.preventDefault();
@@ -547,7 +650,7 @@ export function Hanjie() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [moveCursor, redo, takeHint, toggleAt, undo]);
+  }, [helpOpen, moveCursor, redo, setHelp, takeHint, toggleAt, undo]);
 
   /* ---------------------------------------------------------------- render */
   const toggleSound = () => {
@@ -575,69 +678,85 @@ export function Hanjie() {
   } as CSSProperties;
 
   return (
-    <div className="stage" data-stage={stage} data-help={helpOpen}>
+    <div className="stage" data-stage={stage} data-help={helpVisible}>
       <header className="masthead">
         <h1 className="brand">
           <span className="brand-word">Hanjie</span>
           {/* The seal was decoration. It is now the only thing the rules hang
-              off, so the rules are on screen when you want them and nowhere
-              when you do not. */}
+              off, and the slot holds its square so the title does not shift
+              when the stamp lifts off the page to become the card. */}
+          <span className="brand-seal-slot" ref={slotRef}>
+            <button
+              type="button"
+              className="brand-seal"
+              ref={sealRef}
+              onClick={() => setHelp(true)}
+              aria-expanded={helpOpen}
+              aria-controls="how-to-play"
+              aria-label="How to play"
+            >
+              <span aria-hidden="true">絵</span>
+            </button>
+          </span>
+        </h1>
+      </header>
+
+      {/* The stamp, turned over and enlarged. It is a separate element from the
+          button on purpose: rules nested inside a <button> would be swallowed
+          into its accessible name and never read out. The flip below moves this
+          card from the stamp's square to its own, so it reads as one object. */}
+      {/* A dismiss target only; Escape and the close button carry the job. */}
+      <div
+        className="seal-scrim"
+        data-show={helpOpen}
+        onClick={() => setHelp(false)}
+        aria-hidden="true"
+      />
+      <div
+        className="seal-card"
+        id="how-to-play"
+        ref={cardRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="how-to-play-title"
+        data-show={helpVisible}
+        inert={!helpOpen}
+      >
+        <div className="seal-card-front" aria-hidden="true">
+          絵
+        </div>
+        <div className="seal-card-back">
+          <h2 className="seal-card-title" id="how-to-play-title">
+            How to play
+          </h2>
+          <p className="help-lede">
+            The numbers count the runs of ink in each line. Work out where they
+            sit, and a picture comes out of the grid.
+          </p>
+          <ul className="help-list">
+            <li>
+              Drag to fill a run. The drag locks to the line you started along.
+            </li>
+            <li>
+              Start on a square that already has your paint to rub out instead.
+            </li>
+            <li className="help-fine">Right click paints the other thing.</li>
+            <li className="help-fine">
+              <b>Arrows</b> move, <b>space</b> fills, <b>X</b> rules out.{' '}
+              <b>H</b> hint, <b>M</b> mute, <b>E</b> mode, <b>⌘Z</b> undo.
+            </li>
+            <li>Marks are only for you. Only the ink has to match.</li>
+          </ul>
           <button
             type="button"
-            className="brand-seal"
-            onClick={toggleHelp}
-            aria-expanded={helpOpen}
-            aria-controls="how-to-play"
-            aria-label={helpOpen ? 'Close how to play' : 'How to play'}
+            className="seal-card-close"
+            ref={closeRef}
+            onClick={() => setHelp(false)}
           >
-            {/* The same mark on both faces. Turning the stamp over is the
-                feedback; swapping in a denser character (閉) only made a
-                delicate seal read as a red blob at 20px. The pressed-in look
-                below carries the open state instead. */}
-            <span className="brand-seal-face" aria-hidden="true">
-              絵
-            </span>
-            <span
-              className="brand-seal-face brand-seal-back"
-              aria-hidden="true"
-            >
-              絵
-            </span>
+            Press on
           </button>
-        </h1>
-
-        {/* Pushes the sheet down rather than being charged to the grid's size
-            reserve, so reading the rules never costs you a smaller board. */}
-        <div
-          className="help"
-          id="how-to-play"
-          data-open={helpOpen}
-          inert={!helpOpen}
-        >
-          <div className="help-inner">
-            <p className="help-lede">
-              The numbers count the runs of ink in each line. Work out where
-              they sit, and a picture comes out of the grid.
-            </p>
-            <ul className="help-list">
-              <li>
-                Drag to fill a run. The drag locks to the line you started
-                along.
-              </li>
-              <li>
-                Start on a square that already has your paint to rub out
-                instead.
-              </li>
-              <li className="help-fine">Right click paints the other thing.</li>
-              <li className="help-fine">
-                <b>Arrows</b> move, <b>space</b> fills, <b>X</b> rules out.{' '}
-                <b>H</b> hint, <b>M</b> mute, <b>E</b> mode, <b>⌘Z</b> undo.
-              </li>
-              <li>Marks are only for you. Only the ink has to match.</li>
-            </ul>
-          </div>
         </div>
-      </header>
+      </div>
 
       <div className="table">
         <div className="sheet">

@@ -17,9 +17,11 @@ npm run dev
 Numbers along the top and left count the runs of ink in that line. Work out
 where the runs sit and the picture falls out of the grid.
 
-The rules live behind the red seal beside the title. They are open on a first
-visit and folded away on every one after, which is the only reason the grid can
-be sized to the window rather than to the window minus an explainer.
+The rules live on the back of the red seal beside the title. Press it and the
+stamp lifts off the page, turns over and grows into the card they are written
+on; press on and it shrinks back into the line. They are open on a first visit
+and shut on every one after, which is the only reason the grid can be sized to
+the window rather than to the window minus an explainer.
 
 - Drag to fill a run. The drag locks to the row or column you started moving
   along, so a long line does not wobble into its neighbour.
